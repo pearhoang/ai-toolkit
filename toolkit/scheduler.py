@@ -15,7 +15,8 @@ def get_lr_scheduler(
             return torch.optim.lr_scheduler.CosineAnnealingLR(
                 optimizer, 
                 T_max=kwargs['T_max'],
-                eta_min=kwargs['eta_min']        
+                eta_min=kwargs['eta_min']
+            )     
         return torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, **kwargs
         )
