@@ -1,9 +1,8 @@
-torch==2.6.0
-torchvision==0.21.0
-torchao==0.9.0
+torch
+torchvision
 safetensors
-git+https://github.com/huggingface/diffusers@363d1ab7e24c5ed6c190abb00df66d9edb74383b
-transformers==4.49.0
+git+https://github.com/huggingface/diffusers.git
+transformers
 lycoris-lora==1.8.3
 flatten_json
 pyyaml
@@ -34,4 +33,3 @@ huggingface_hub
 peft
 gradio
 python-slugify
-opencv-python
