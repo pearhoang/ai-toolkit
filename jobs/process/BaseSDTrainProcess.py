@@ -491,6 +491,12 @@ class BaseSDTrainProcess(BaseTrainProcess):
     def end_step_hook(self):
         pass
 
+    def _get_scheduler_step_index(self) -> int:
+        grad_steps = self.train_config.gradient_accumulation_steps
+        if grad_steps is None or grad_steps <= 0 or grad_steps == -1:
+            return int(self.step_num)
+        return int(self.step_num // grad_steps)
+
     def save(self, step=None):
         if not self.accelerator.is_main_process:
             return
@@ -2014,10 +2020,10 @@ class BaseSDTrainProcess(BaseTrainProcess):
             # Update the learning rates if they changed
             # optimizer.param_groups = previous_params
 
-        lr_scheduler_params = self.train_config.lr_scheduler_params
+        lr_scheduler_params = copy.deepcopy(self.train_config.lr_scheduler_params or {})
 
         # make sure it had bare minimum
-        if 'max_iterations' not in lr_scheduler_params:
+        if 'max_iterations' not in lr_scheduler_params and 'total_iters' not in lr_scheduler_params:
             lr_scheduler_params['total_iters'] = self.train_config.steps
 
         lr_scheduler = get_lr_scheduler(
@@ -2081,7 +2087,7 @@ class BaseSDTrainProcess(BaseTrainProcess):
         # zero any gradients
         optimizer.zero_grad()
 
-        self.lr_scheduler.step(self.step_num)
+        self.lr_scheduler.step(self._get_scheduler_step_index())
 
         self.sd.set_device_state(self.train_device_state_preset)
         flush()
@@ -2544,3 +2550,4 @@ For more details, including weighting, merging and fusing LoRAs, check the [docu
 
 """
         return readme_content
+
