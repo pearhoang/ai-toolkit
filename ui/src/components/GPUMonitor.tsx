@@ -50,22 +50,22 @@ const GpuMonitor: React.FC = () => {
       case 1:
         return 'grid-cols-1';
       case 2:
-        return 'grid-cols-2';
+        return 'grid-cols-1 sm:grid-cols-2';
       case 3:
-        return 'grid-cols-3';
+        return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
       case 4:
-        return 'grid-cols-4';
+        return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
       case 5:
       case 6:
-        return 'grid-cols-3';
+        return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
       case 7:
       case 8:
-        return 'grid-cols-4';
+        return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
       case 9:
       case 10:
-        return 'grid-cols-5';
+        return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-5';
       default:
-        return 'grid-cols-3';
+        return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
     }
   };
 
@@ -98,7 +98,7 @@ const GpuMonitor: React.FC = () => {
       );
     }
 
-    if (!gpuData.hasNvidiaSmi) {
+    if (!gpuData.hasNvidiaSmi && !gpuData.isMac) {
       return (
         <div className="bg-yellow-900 border border-yellow-700 text-yellow-300 px-4 py-3 rounded relative" role="alert">
           <strong className="font-bold">No NVIDIA GPUs detected!</strong>

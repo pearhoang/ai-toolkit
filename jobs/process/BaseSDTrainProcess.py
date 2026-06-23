@@ -19,8 +19,7 @@ from safetensors.torch import save_file, load_file
 from torch.utils.data import DataLoader
 import torch
 import torch.backends.cuda
-from huggingface_hub import HfApi, Repository, interpreter_login
-from huggingface_hub.utils import HfFolder
+from huggingface_hub import HfApi, interpreter_login
 from toolkit.memory_management import MemoryManager
 
 from toolkit.basic import value_map
@@ -72,10 +71,7 @@ import hashlib
 
 from toolkit.util.blended_blur_noise import get_blended_blur_noise
 from toolkit.util.get_model import get_model_class
-
-def flush():
-    torch.cuda.empty_cache()
-    gc.collect()
+from toolkit.basic import flush
 
 
 class BaseSDTrainProcess(BaseTrainProcess):
@@ -264,6 +260,7 @@ class BaseSDTrainProcess(BaseTrainProcess):
         self.current_boundary_index = 0
         self.steps_this_boundary = 0
         self.num_consecutive_oom = 0
+        self.additional_logs = {}
 
     def post_process_generate_image_config_list(self, generate_image_config_list: List[GenerateImageConfig]):
         # override in subclass
@@ -641,7 +638,7 @@ class BaseSDTrainProcess(BaseTrainProcess):
                 
                 print_acc("Merging network weights into full model for saving...")
                 
-                self.network.merge_in(merge_weight=1.0)
+                self.network.merge_in(merge_weight=self.train_config.merge_network_on_save_strength)
                 # reset weights to zero
                 self.network.reset_weights()
                 self.network.is_merged_in = False
@@ -1181,7 +1178,7 @@ class BaseSDTrainProcess(BaseTrainProcess):
                         self.train_config.linear_timesteps,
                         self.train_config.linear_timesteps2,
                         self.train_config.timestep_type == 'linear',
-                        self.train_config.timestep_type == 'one_step',
+                        self.train_config.timestep_type in ['one_step', 'two_step', 'four_step', 'eight_step'],
                     ])
                     
                     timestep_type = 'linear' if linear_timesteps else None
@@ -1197,7 +1194,7 @@ class BaseSDTrainProcess(BaseTrainProcess):
                     if self.sd.is_flux or 'flex' in self.sd.arch:
                         # flux is a patch size of 1, but latents are divided by 2, so we need to double it
                         patch_size = 2
-                    elif hasattr(self.sd.unet.config, 'patch_size'):
+                    elif hasattr(self.sd.unet, 'config') and hasattr(self.sd.unet.config, 'patch_size'):
                         patch_size = self.sd.unet.config.patch_size
                     
                     self.sd.noise_scheduler.set_train_timesteps(
@@ -1235,8 +1232,16 @@ class BaseSDTrainProcess(BaseTrainProcess):
                 if is_reg:
                     content_or_style = self.train_config.content_or_style_reg
 
-                # if self.train_config.timestep_sampling == 'style' or self.train_config.timestep_sampling == 'content':
-                if self.train_config.timestep_type == 'next_sample':
+                if self.train_config.timestep_type in ['two_step', 'four_step', 'eight_step']:
+                    if self.train_config.timestep_type == 'two_step':
+                        indice_choices = [0, 499]
+                    elif self.train_config.timestep_type == 'four_step':
+                        indice_choices = [0, 250, 500, 750]
+                    elif self.train_config.timestep_type == 'eight_step':
+                        indice_choices = [0, 125, 250, 375, 500, 625, 750, 875]
+                    timestep_indices = torch.tensor(random.choices(indice_choices, k=batch_size), device=self.device_torch)
+                    timestep_indices = timestep_indices.long()
+                elif self.train_config.timestep_type == 'next_sample':
                     timestep_indices = torch.randint(
                             0,
                             num_train_timesteps - 2, # -1 for 0 idx, -1 so we can step
@@ -1336,6 +1341,21 @@ class BaseSDTrainProcess(BaseTrainProcess):
                     batch_noise = batch_noise * scn_scale
                     noise = noise + batch_noise 
                 
+                if self.train_config.do_batch_noise_correction:
+                    if latents.shape[0] == 1:
+                        # if we only have a batch size of 1, then we cant do batch noise correction, so we skip it
+                        print_acc("Skipping batch noise correction because batch size is 1, increase batch size and num_repeats to use this feature")
+                    else:
+                        # shuffle tensors ensuring that no tensor is in the same position as before
+                        batch_noise = latents.clone().roll(shifts=torch.randint(1, latents.shape[0], (1,)).item(), dims=0).to(noise.device, dtype=noise.dtype)
+                        batch_noise_scale = torch.randn(
+                            batch_noise.shape[0], batch_noise.shape[1], 1, 1,
+                            device=batch_noise.device,
+                            dtype=batch_noise.dtype
+                        ) * self.train_config.batch_noise_correction_scale
+                        batch_noise = batch_noise * batch_noise_scale
+                        noise = noise + batch_noise
+
                 if self.train_config.random_noise_shift > 0.0:
                     # get random noise -1 to 1
                     noise_shift = torch.randn(
@@ -1349,7 +1369,7 @@ class BaseSDTrainProcess(BaseTrainProcess):
                 if self.train_config.random_noise_multiplier > 0.0:
                     sigma = self.train_config.random_noise_multiplier
                     noise_multiplier = torch.exp(torch.randn(s, device=noise.device, dtype=noise.dtype) * sigma)
-                
+                    noise = noise * noise_multiplier
             with self.timer('make_noisy_latents'):
 
                 latent_multiplier = self.train_config.latent_multiplier
@@ -1609,14 +1629,6 @@ class BaseSDTrainProcess(BaseTrainProcess):
         # run base sd process run
         self.sd.load_model()
         
-        # compile the model if needed
-        if self.model_config.compile:
-            try:
-                torch.compile(self.sd.unet, dynamic=True, fullgraph=True, mode='max-autotune')
-            except Exception as e:
-                print_acc(f"Failed to compile model: {e}")
-                print_acc("Continuing without compilation")
-
         self.sd.add_after_sample_image_hook(self.sample_step_hook)
 
         dtype = get_torch_dtype(self.train_config.dtype)
@@ -1953,6 +1965,7 @@ class BaseSDTrainProcess(BaseTrainProcess):
             if self.adapter_config is not None and self.adapter is None:
                 self.setup_adapter()
         flush()
+
         ### HOOK ###
         params = self.hook_add_extra_train_params(params)
         self.params = params
@@ -2020,6 +2033,9 @@ class BaseSDTrainProcess(BaseTrainProcess):
             # Update the learning rates if they changed
             # optimizer.param_groups = previous_params
 
+        # set up the ema now that the optimizer (and its params) are ready
+        self.setup_ema()
+
         lr_scheduler_params = copy.deepcopy(self.train_config.lr_scheduler_params or {})
 
         # make sure it had bare minimum
@@ -2046,6 +2062,196 @@ class BaseSDTrainProcess(BaseTrainProcess):
         self.last_save_step = self.step_num
         ### HOOK ###
         self.hook_before_train_loop()
+
+        # ============================================================
+        # COMPILE
+        #
+        # compile: true
+        #     -> whole-model torch.compile
+        #
+        # compile: true
+        # block_compile: true
+        #     -> block-level compilation
+        # ============================================================
+        if self.model_config.compile:
+            try:
+                inner_unet_check = unwrap_model(self.sd.unet)
+                is_unet_offloaded = hasattr(inner_unet_check, '_memory_manager')
+
+                text_encoder = getattr(self.sd, "text_encoder", None)
+                text_encoder_check = unwrap_model(text_encoder) if text_encoder is not None else None
+                is_te_offloaded = hasattr(text_encoder_check, '_memory_manager') if text_encoder_check is not None else False
+
+                is_unet_quantized = getattr(self.model_config, 'quantize', False)
+                is_quantized = is_unet_quantized or getattr(self.model_config, 'quantize_te', False)
+
+                try:
+                    from torch.utils._triton import has_triton
+                    triton_available = has_triton()
+                except Exception:
+                    triton_available = False
+
+                if not triton_available:
+                    print_acc("WARNING: compile is disabled.")
+                    print_acc("Triton is not available or not working on this system.")
+                    print_acc("Install a working 'triton' package to use compile.")
+                    print_acc("Continuing without compilation.")
+                else:
+
+                    if not is_unet_offloaded:
+                        self.sd.unet.to(self.device_torch)
+
+                    cache_size_limit = getattr(self.model_config, 'cache_size_limit', 8)
+                    torch._dynamo.config.cache_size_limit = cache_size_limit
+                    torch._dynamo.config.suppress_errors = False
+
+                    compile_mode = getattr(self.model_config, 'compile_mode', 'default')
+                    compile_dynamic = getattr(self.model_config, 'compile_dynamic', True)
+                    compile_fullgraph = getattr(self.model_config, 'compile_fullgraph', True)
+                    block_compile = getattr(self.model_config, 'block_compile', False)
+
+                    # quantized + offloaded unet is incompatible with fullgraph; force it off
+                    if is_unet_quantized and is_unet_offloaded and compile_fullgraph:
+                        print_acc(
+                            "Quantized offloaded Transformer detected: fullgraph=True is incompatible, "
+                            "switching to fullgraph=False."
+                        )
+                        compile_fullgraph = False
+
+                    cache_info = f", cache_size_limit={cache_size_limit}" if cache_size_limit != 8 else ""
+                    # ====================================================
+                    # BLOCK COMPILE
+                    # ====================================================
+                    if block_compile:
+                        BLOCK_LIST_ATTRS = self.sd.get_transformer_block_names()
+
+                        if BLOCK_LIST_ATTRS is None or len(BLOCK_LIST_ATTRS) == 0:
+                            BLOCK_LIST_ATTRS = [
+                                'layers',
+                                'transformer_blocks',
+                                'single_transformer_blocks',
+                                'double_stream_blocks',
+                                'single_stream_blocks',
+                                'double_blocks',
+                                'single_blocks',
+                                'blocks',
+                            ]
+                        inner_unet = unwrap_model(self.sd.unet)
+
+                        compiled_block_count = 0
+
+                        for attr_name in BLOCK_LIST_ATTRS:
+                            # attr_name may be a dotted path for models that nest their
+                            # blocks (e.g. hidream_o1's "model.language_model.layers").
+                            block_list = inner_unet
+                            for part in attr_name.split('.'):
+                                block_list = getattr(block_list, part, None)
+                                if block_list is None:
+                                    break
+
+                            if block_list is None:
+                                continue
+
+                            if not hasattr(block_list, '__len__'):
+                                continue
+
+                            for i, block in enumerate(block_list):
+                                if not isinstance(block, torch.nn.Module):
+                                    continue
+
+                                if hasattr(block, '_hf_hook'):
+                                    continue
+
+                                block_list[i] = torch.compile(
+                                    block,
+                                    mode=compile_mode,
+                                    dynamic=compile_dynamic,
+                                    fullgraph=compile_fullgraph,
+                                )
+                                compiled_block_count += 1
+
+                        if compiled_block_count > 0:
+                            print_acc(
+                                f"Compiled {compiled_block_count} transformer block(s) "
+                                f"with torch.compile (mode='{compile_mode}', fullgraph={compile_fullgraph}, dynamic={compile_dynamic}{cache_info})."
+                            )
+                            print_acc("The first forward pass will be slow during compile. This is normal.")
+                            print_acc("If you are experiencing issues, disable block_compile.")
+                        else:
+                            print_acc(
+                                f"No individual transformer blocks found; "
+                                f"falling back to whole-model torch.compile "
+                                f"(mode='{compile_mode}', fullgraph={compile_fullgraph}, dynamic={compile_dynamic}{cache_info})."
+                            )
+                            print_acc("The first forward pass will hang for a while. This is normal.")
+
+                            if is_unet_quantized and not is_unet_offloaded and compile_fullgraph:
+                                print_acc(
+                                    "Quantized model detected: fullgraph=True is incompatible "
+                                    "for whole-model compile, switching to fullgraph=False."
+                                )
+                                compile_fullgraph = False
+
+                            if compile_mode == 'default':
+                                self.sd.unet = torch.compile(
+                                    self.sd.unet,
+                                    dynamic=compile_dynamic,
+                                    fullgraph=compile_fullgraph,
+                                )
+                            else:
+                                self.sd.unet = torch.compile(
+                                    self.sd.unet,
+                                    mode=compile_mode,
+                                    dynamic=compile_dynamic,
+                                    fullgraph=compile_fullgraph,
+                                )
+
+                    # ====================================================
+                    # WHOLE MODEL COMPILE
+                    # ====================================================
+                    else:
+                        print_acc("Compiling model with torch.compile (whole-model compile).")
+                        print_acc("The first forward pass will hang for a while. This is normal.")
+
+                        print_acc(
+                            f"Using torch.compile settings: "
+                            f"mode={compile_mode}, "
+                            f"dynamic={compile_dynamic}, "
+                            f"fullgraph={compile_fullgraph}{cache_info}"
+                        )
+
+                        if compile_fullgraph:
+                            print_acc(
+                                "fullgraph=True is incompatible with whole-model compile, "
+                                "switching to fullgraph=False."
+                            )
+                            compile_fullgraph = False
+
+                        if compile_mode == 'default':
+                            self.sd.unet = torch.compile(
+                                self.sd.unet,
+                                dynamic=compile_dynamic,
+                                fullgraph=compile_fullgraph,
+                            )
+                        else:
+                            self.sd.unet = torch.compile(
+                                self.sd.unet,
+                                mode=compile_mode,
+                                dynamic=compile_dynamic,
+                                fullgraph=compile_fullgraph,
+                            )
+
+                    if not is_unet_offloaded:
+                        # once compiled, dynamo guards hold weakrefs to the params;
+                        # .to() on quantized params requires swap_tensors, which fails
+                        # on tensors with weakrefs. The model stays on device anyway,
+                        # so make .to() a no-op.
+                        unet_module = self.sd.unet
+                        unet_module.to = lambda *args, **kwargs: unet_module
+
+            except Exception as e:
+                print_acc(f"Failed to compile model: {e}")
+                print_acc("Continuing without compilation")
 
         if self.has_first_sample_requested and self.step_num <= 1 and not self.train_config.disable_sampling:
             print_acc("Generating first sample from first sample config")
@@ -2333,6 +2539,12 @@ class BaseSDTrainProcess(BaseTrainProcess):
                                     self.logger.log({
                                         f'loss/{key}': value,
                                     })
+                            if self.additional_logs is not None:
+                                for key, value in self.additional_logs.items():
+                                    self.logger.log({
+                                        key: value,
+                                    })
+                                self.additional_logs = {}
                     elif self.logging_config.log_every is None:
                         if self.accelerator.is_main_process:
                             # log every step
@@ -2343,6 +2555,12 @@ class BaseSDTrainProcess(BaseTrainProcess):
                                 self.logger.log({
                                     f'loss/{key}': value,
                                 })
+                            if self.additional_logs is not None:
+                                for key, value in self.additional_logs.items():
+                                    self.logger.log({
+                                        key: value,
+                                    })
+                                self.additional_logs = {}
 
 
                     if self.performance_log_every > 0 and self.step_num % self.performance_log_every == 0:

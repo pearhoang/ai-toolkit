@@ -8,6 +8,7 @@ from torchao.quantization.quant_api import (
     quantize_ as torchao_quantize_,
     Float8WeightOnlyConfig,
     UIntXWeightOnlyConfig,
+    Int8WeightOnlyConfig
 )
 from optimum.quanto import freeze
 from tqdm import tqdm
@@ -41,6 +42,7 @@ torchao_qtypes = {
     "uint6": UIntXWeightOnlyConfig(torch.uint6),
     "uint7": UIntXWeightOnlyConfig(torch.uint7),
     "uint8": UIntXWeightOnlyConfig(torch.uint8),
+    "int8": Int8WeightOnlyConfig(),
     "float8": Float8WeightOnlyConfig(),
 }
 
@@ -295,7 +297,13 @@ def quantize_model(
         all_blocks: List[torch.nn.Module] = []
         transformer_block_names = base_model.get_transformer_block_names()
         for name in transformer_block_names:
-            block_list = getattr(model_to_quantize, name, None)
+            # name may be a dotted path for models that nest their blocks
+            # (e.g. hidream_o1's "model.language_model.layers").
+            block_list = model_to_quantize
+            for part in name.split('.'):
+                block_list = getattr(block_list, part, None)
+                if block_list is None:
+                    break
             if block_list is not None:
                 all_blocks += list(block_list)
         base_model.print_and_status_update(
