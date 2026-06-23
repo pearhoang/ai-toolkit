@@ -2,6 +2,7 @@
 
 | ID | Decision | Status | Scope | Impact |
 |----|----------|--------|-------|--------|
+| DEC-001 | Scheduler phase params default to optimizer-update units; configs may opt into displayed training-step units with `phase_step_unit: training_steps`. | Active | `toolkit/scheduler.py`, `jobs/process/BaseSDTrainProcess.py` | Medium |
 
 ## Notes
 - Keep only active decisions here.

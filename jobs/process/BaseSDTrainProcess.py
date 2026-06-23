@@ -45,7 +45,7 @@ from toolkit.sampler import get_sampler
 from toolkit.saving import save_t2i_from_diffusers, load_t2i_model, save_ip_adapter_from_diffusers, \
     load_ip_adapter_model, load_custom_adapter_model
 
-from toolkit.scheduler import get_lr_scheduler
+from toolkit.scheduler import get_lr_scheduler, normalize_scheduler_params_for_optimizer_updates
 from toolkit.sd_device_states_presets import get_train_sd_device_state_preset
 from toolkit.stable_diffusion_model import StableDiffusion
 
@@ -2037,10 +2037,13 @@ class BaseSDTrainProcess(BaseTrainProcess):
         self.setup_ema()
 
         lr_scheduler_params = copy.deepcopy(self.train_config.lr_scheduler_params or {})
-
         # make sure it had bare minimum
         if 'max_iterations' not in lr_scheduler_params and 'total_iters' not in lr_scheduler_params:
             lr_scheduler_params['total_iters'] = self.train_config.steps
+        lr_scheduler_params = normalize_scheduler_params_for_optimizer_updates(
+            lr_scheduler_params,
+            self.train_config.gradient_accumulation_steps,
+        )
 
         lr_scheduler = get_lr_scheduler(
             self.train_config.lr_scheduler,

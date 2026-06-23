@@ -1,7 +1,73 @@
 import math
 import torch
+from copy import deepcopy
 from typing import Optional
 from diffusers.optimization import SchedulerType, TYPE_TO_SCHEDULER_FUNCTION, get_constant_schedule_with_warmup
+
+
+def _scheduler_step_interval(gradient_accumulation_steps) -> int:
+    if gradient_accumulation_steps == -1:
+        raise ValueError(
+            "phase_step_unit='training_steps' cannot be converted when "
+            "gradient_accumulation_steps is -1 because optimizer updates depend on epoch length."
+        )
+    if gradient_accumulation_steps is None:
+        return 1
+    interval = int(gradient_accumulation_steps)
+    return max(1, interval)
+
+
+def _to_optimizer_updates(value, step_interval: int) -> int:
+    return max(1, int(math.ceil(float(value) / float(step_interval))))
+
+
+def normalize_scheduler_params_for_optimizer_updates(
+        params: dict,
+        gradient_accumulation_steps=None,
+) -> dict:
+    """
+    Scheduler.step() is called only on optimizer updates in the SD trainer.
+    Set phase_step_unit to `training_steps` when a config is
+    authored against displayed training steps instead of optimizer updates.
+    """
+    normalized = deepcopy(params or {})
+    unit = (
+        normalized.pop("phase_step_unit", None)
+        or normalized.pop("scheduler_step_unit", None)
+        or normalized.pop("step_unit", None)
+        or "optimizer_updates"
+    )
+    unit = str(unit).lower()
+    if unit in ("optimizer_update", "optimizer_updates", "optimizer_step", "optimizer_steps"):
+        return normalized
+    if unit not in ("training_step", "training_steps", "train_step", "train_steps", "displayed_step", "displayed_steps"):
+        raise ValueError(
+            "phase_step_unit must be `optimizer_updates` or `training_steps`."
+        )
+
+    step_interval = _scheduler_step_interval(gradient_accumulation_steps)
+    if step_interval <= 1:
+        return normalized
+
+    for key in ("warmup_steps", "num_warmup_steps", "total_iters", "T_0", "T_max"):
+        if key in normalized:
+            normalized[key] = _to_optimizer_updates(normalized[key], step_interval)
+
+    phases = normalized.get("phases")
+    if isinstance(phases, list):
+        for phase in phases:
+            if not isinstance(phase, dict):
+                continue
+            for key in ("steps", "num_steps", "total_iters"):
+                if key in phase:
+                    phase[key] = _to_optimizer_updates(phase[key], step_interval)
+
+    for idx in range(1, 10):
+        key = f"phase{idx}_steps"
+        if key in normalized:
+            normalized[key] = _to_optimizer_updates(normalized[key], step_interval)
+
+    return normalized
 
 
 class _WarmupThenScheduler:
@@ -300,6 +366,10 @@ def get_lr_scheduler(
             kwargs['T_mult'] = kwargs.pop('t_mult')
         phases = _normalize_phase_shortcuts(kwargs)
         if phases is not None:
+            print(
+                "WARNING: `warmup_then_cosine_restarts` with `phases` uses the "
+                "phased cosine scheduler. Prefer `warmup_then_phased_cosine`."
+            )
             warmup_init_lr = float(kwargs.pop("warmup_init_lr", 0.0))
             reference_lr = kwargs.pop("reference_lr", None)
             return _WarmupThenPhasedCosineScheduler(
@@ -323,6 +393,7 @@ def get_lr_scheduler(
             print(e)
             pass
         raise ValueError(
-            "Scheduler must be cosine, cosine_with_restarts, step, linear or constant"
+            "Scheduler must be cosine, cosine_with_restarts, step, linear, constant, "
+            "warmup_then_cosine_restarts, or warmup_then_phased_cosine"
         )
 
