@@ -32,6 +32,11 @@ model:
 - Scheduler chỉ step khi optimizer update. Notebook hiện tại dùng `phase_step_unit: training_steps` để quy warmup/phase theo displayed steps; params được deep-copy trước conversion theo accumulation.
 - Không thay default của configs cũ hoặc pin commit trong notebook legacy. Resume index tiếp tục dùng optimizer-update units.
 
+## Gradient accumulation
+- Khi `gradient_accumulation_steps>1`, SDTrainer giữ gradient qua các lần gọi microbatch và chỉ xóa ở đầu cycle hoặc sau optimizer update. Bản trước đã xóa ở mỗi lần gọi, làm mất gradient của các microbatch trước dù loss được chia đúng accumulation.
+- Counter của Base bắt đầu1, chuyển0 tại lượt update rồi trở về1. Accumulation1 giữ hành vi cũ; batch-list accumulation và repeated-call accumulation chỉ normalize loss một lần theo số microbatch thực.
+- `testing/test_sd_trainer_accumulation.py` chạy actual hook bằng tensor/SGD CPU với các target khác nhau, đối chiếu mean-gradient, không chỉ đếm call.
+
 ## Kiểm chứng
 - `python testing/test_scheduler_step_units.py`:7CPU tests cho phase conversion, curve, param-group ratio, resume và merged trainer call site.
 - `python testing/test_flux3_reference_contract.py`:11CPU tests dùng actual loader/model methods và packers; kiểm independent shapes,2/3refs, legacy stacked input, role IDs, t0 conditioning, gradient qua recording transformer, budget/Lanczos và prefix roundtrip.

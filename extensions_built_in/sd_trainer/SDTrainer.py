@@ -2347,7 +2347,11 @@ class SDTrainer(BaseSDTrainProcess):
         else:
             batch_list = [batch]
         total_loss = None
-        self.optimizer.zero_grad()
+        # BaseSDTrainProcess starts a new accumulation cycle at counter1 and
+        # sets it to0 on the updating call. Preserve earlier microbatch grads;
+        # clearing on every call silently trains on only the final microbatch.
+        if self.grad_accumulation_step == 1 or self.train_config.gradient_accumulation_steps == 1:
+            self.optimizer.zero_grad()
         # micro-batches per optimizer step: a batch list (gradient_accumulation) or repeated
         # calls (gradient_accumulation_steps). -1 (whole epoch) has no fixed count; left summed.
         n_accum = len(batch_list)
