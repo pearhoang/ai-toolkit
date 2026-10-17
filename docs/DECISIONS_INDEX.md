@@ -8,3 +8,5 @@
 - Keep only active decisions here.
 - Add a decision when a repo-wide contract, architecture boundary, dependency policy, or long-lived fork behavior changes.
 - Prefer concise entries and link deeper context from a separate decision note only when needed.
+
+| DEC-002 | FLUX.3 edit giữ raw ordered controls; budget reference độc lập là opt-in, scheduler fork và legacy pins không đổi | Active | FLUX.3 model/paired training | High |

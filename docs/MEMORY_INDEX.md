@@ -7,6 +7,8 @@
 
 ## Read By Task Type
 
+- FLUX.3 edit training, raw/multi-reference fixes, independent reference budget và scheduler compatibility: `docs/modules/flux3-edit-training.md`.
+
 ### Upstream Sync / Fork Maintenance
 - `docs/DECISIONS_INDEX.md` when resolving conflicts that affect contracts or long-lived fork behavior.
 - `docs/CHANGELOG.md` for short summaries of completed sync work.
