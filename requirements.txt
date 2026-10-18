@@ -1,2 +1,7 @@
 -r requirements_base.txt
 scipy==1.12.0
+# Image-training/Colab baseline: keep the same NumPy ABI as legacy notebooks.
+numpy==1.26.4
+# TensorBoard -> Werkzeug and the existing Colab IPython kernel.
+MarkupSafe>=2.1.1,<4
+jedi>=0.16

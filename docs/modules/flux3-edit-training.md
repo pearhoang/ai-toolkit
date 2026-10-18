@@ -43,5 +43,7 @@ model:
 - Tests reference dùng AST loading để tách dependency/model weights không liên quan; không phải end-to-end training. Chưa tải weights hoặc kiểm GPU optimizer step/VRAM/quality. Prefix roundtrip cũng chưa chứng minh mọi exporter/checkpoint load vào ComfyUI.
 
 ## Môi trường
+- Colab theo luồng V7/V8: cell0 chuẩn bị NumPy1.26.4 rồi manualrestart; cell1 clone/fetch `pearhoang/ai-toolkit` main và `pip install -r requirements.txt`. Requirements root giữ NumPy/SciPy và MarkupSafe/Jedi; FLUX.3 Transformers/Diffusers đã nằm trong requirements_base. Không ép bộ Torch/CUDA của manager vào runtime Colab, không chặn vì dependency của gói ngoài training. Trainer thực vẫn báo lỗi import/CUDA nếu không tương thích; log phải hiện stdout/stderr đầy đủ.
+- Sync upstream8cf43dd (2026-10-18): giữ helper raw/stacked controls của fork (bao phủ upstream9d408eb), thêm park text encoder sau cache khi low_vram và libdevice global cho Triton cũ. Scheduler/gradient accumulation/reference budget giữ contract cũ.
 - Requirements theo upstream mới, gồm Transformers5.5.3 và Diffusers git pin. Dùng môi trường training riêng/Colab; không nâng cấp embedded Python của ComfyUI/PhotoCraft để phục vụ trainer.
 - Trước run lớn: validate paired geometry/mask, caption recipe, số/order refs thực sự tới transformer, cache disk, sample/checkpoint/ZIP marker và exporter LoRA.

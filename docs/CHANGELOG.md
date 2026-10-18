@@ -11,3 +11,5 @@
 
 ## 2026-10-18 — Giữ gradient qua microbatch
 - Sửa SDTrainer xóa gradient ở đầu mỗi call khi accumulation>1; chỉ zero đầu cycle và sau update.6actual-hook CPU regression tests đối chiếu gradient trung bình, nhiều cycle, accumulation1/2/3 và batch-list; không đổi schema hoặc legacy notebook pins.
+
+- 2026-10-18: Merge upstream8cf43dd (6commits): raw/stacked FLUX3 reference fix reconciled with fork helper, park TE after caching under low_vram, Triton libdevice globals and MOSS updates. Root requirements now declare NumPy1.26.4/MarkupSafe floor/Jedi for legacy Colab install flow; no manager GPU-stack override.11reference+6accumulation+7scheduler CPUtests PASS.

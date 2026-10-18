@@ -10,3 +10,5 @@
 - Prefer concise entries and link deeper context from a separate decision note only when needed.
 
 | DEC-002 | FLUX.3 edit giữ raw ordered controls; budget reference độc lập là opt-in, scheduler fork và legacy pins không đổi | Active | FLUX.3 model/paired training | High |
+
+| DEC-003 | Colab dùng requirements.txt của main theo luồng notebook V7/V8; dependency baseline nằm trong repo, không ép manager Torch/CUDA hoặc global pip checks từ notebook | Active | Colab/install | Medium |

@@ -14,3 +14,9 @@ Use `lr_scheduler: warmup_then_phased_cosine` when `phases` are present. The old
 - Giữ scheduler theo optimizer updates và phase_step_unit của fork khi merge upstream main82e6311.
 - FLUX.3 bật raw/multiple-control capabilities; train/preview không bỏ hoặc gộp reference roles. Optional reference_megapixels/reference_resize_method dùng để khớp workflow inference; mặc định sizing upstream giữ nguyên.
 - Canonical: docs/modules/flux3-edit-training.md. Kiểm CPU actual data/model methods, chưa full GPU training; không đổi notebook legacy pins.
+
+
+## DEC-003 — Colab legacy installation flow
+
+- User yêu cầu nhập cập nhật vào main và tải/cài như V7/V8. Cell0 chỉ chuẩn bị NumPy rồi restart; cell1 clone/fetch main và pip install requirements.txt. NumPy/SciPy/MarkupSafe/Jedi nằm trong root requirements. Không cài bộ GPU stack theo manager/detect trong notebook.
+- Record commit thực tế và phiên bản thư viện vào run/cache identity; kiểm import model thật sau cài với traceback đầy đủ. Không coi CPU/AST checks là Colab GPU training.
