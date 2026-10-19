@@ -12,3 +12,5 @@
 | DEC-002 | FLUX.3 edit giữ raw ordered controls; budget reference độc lập là opt-in, scheduler fork và legacy pins không đổi | Active | FLUX.3 model/paired training | High |
 
 | DEC-003 | Colab dùng requirements.txt của main theo luồng notebook V7/V8; dependency baseline nằm trong repo, không ép manager Torch/CUDA hoặc global pip checks từ notebook | Active | Colab/install | Medium |
+
+| DEC-004 | FLUX.3 dùng BFL pad position1 và cache CFG pair ở window chung; text cache revision mới, latent/TAR không đổi | Active | FLUX.3 text/cache/preview | High |

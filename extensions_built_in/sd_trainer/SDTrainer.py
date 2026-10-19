@@ -267,6 +267,14 @@ class SDTrainer(BaseSDTrainProcess):
                     positive = self.sd.encode_prompt(gen_img_config.prompt).to('cpu')
                     negative = self.sd.encode_prompt(gen_img_config.negative_prompt).to('cpu')
                 
+                # Some models attend to real encoded pad tokens (FLUX.3). Align
+                # CFG windows while the TE is still loaded, never with zeros.
+                prepare_pair = getattr(self.sd, 'prepare_sample_prompt_pair', None)
+                if prepare_pair is not None:
+                    positive, negative = prepare_pair(gen_img_config, positive, negative)
+                    positive = positive.to('cpu')
+                    negative = negative.to('cpu')
+
                 self.sd.sample_prompts_cache.append({
                     'conditional': positive,
                     'unconditional': negative

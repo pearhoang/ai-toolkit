@@ -12,7 +12,6 @@ convention. The inference schedule is a timeshifted uniform grid
 from typing import List, Optional
 
 import torch
-import torch.nn.functional as F
 from PIL import Image
 from diffusers.utils.torch_utils import randn_tensor
 
@@ -44,17 +43,20 @@ def build_text_conditioning(
 ):
     """Per-sample (L, 20480) ctx tensors -> batched DiT text kwargs.
 
-    Embeds are padded to a multiple of 80 tokens at encode time, so items
-    encoded separately (TE cache, cond/uncond pairs) can differ in length;
-    shorter ones are zero-padded to the batch's longest. Returns
+    All items must have the same encoded window. FLUX.3 has no DiT text
+    mask: padding a shorter item with zeros changes its conditioning.
+    Encode CFG pairs at a common window before caching/unloading the TE. Returns
     ``(ctx (B, L, D), ctx_ids (B, L, 4), timesteps_ctx (B, L))``.
     """
     max_len = max(e.shape[0] for e in text_embeds_list)
+    if any(e.shape[0] != max_len for e in text_embeds_list):
+        raise ValueError(
+            "FLUX.3 text windows differ: encode prompts at a common window before "
+            "batching. Rebuild paired CFG sample caches; for variable cached training "
+            "windows use physical batch size 1. Zero-padding embeddings is invalid."
+        )
     ctx = torch.stack(
-        [
-            F.pad(e.to(device, dtype), (0, 0, 0, max_len - e.shape[0]))
-            for e in text_embeds_list
-        ]
+        [e.to(device, dtype) for e in text_embeds_list]
     )
     _, ctx_ids = prc_txt(ctx[0])
     ctx_ids = ctx_ids.unsqueeze(0).expand(ctx.shape[0], -1, -1).to(device)

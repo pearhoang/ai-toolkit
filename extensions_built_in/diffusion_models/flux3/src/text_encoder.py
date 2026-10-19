@@ -23,6 +23,8 @@ CONTEXT_DIM = 20480  # len(SELECT_LAYERS) * qwen hidden (2560)
 # package defaults (text_encoder section of config.json)
 DEFAULT_PAD_MULTIPLE = 80
 DEFAULT_MAX_TOKENS = 8192
+# Encoded pad-token states changed: never reuse the pre-position-fix TE cache.
+TEXT_EMBEDDING_VERSION = "flux3_qwen3vl_padpos1_v2"
 
 QWEN3_VL_4B_REPO = "Qwen/Qwen3-VL-4B-Instruct"
 
@@ -131,6 +133,7 @@ def encode_flux3_prompt(
             text,
             return_tensors="pt",
             padding="max_length",
+            padding_side="right",
             truncation=True,
             max_length=max_length,
         )
@@ -139,9 +142,15 @@ def encode_flux3_prompt(
     input_ids = torch.cat(input_ids_list, dim=0).to(text_encoder.device)
     attention_mask = torch.cat(attn_list, dim=0).to(text_encoder.device)
 
+    # Match BFL across Transformers versions. FLUX.3 attends to the pad-token
+    # hidden states too; masking them inside Qwen does not make their RoPE
+    # positions irrelevant to the downstream DiT.
+    positions = (attention_mask.long().cumsum(-1) - 1).masked_fill(attention_mask == 0, 1)
+
     out = text_encoder(
         input_ids=input_ids,
         attention_mask=attention_mask,
+        position_ids=positions[None].expand(4, -1, -1),
         output_hidden_states=True,
         use_cache=False,
     )

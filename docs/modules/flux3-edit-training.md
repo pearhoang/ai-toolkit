@@ -38,6 +38,9 @@ model:
 - `testing/test_sd_trainer_accumulation.py` chạy actual hook bằng tensor/SGD CPU với các target khác nhau, đối chiếu mean-gradient, không chỉ đếm call.
 
 ## Kiểm chứng
+- Text-conditioning revision `flux3_qwen3vl_padpos1_v2`: right-padding rõ ràng; Qwen token đệm dùng position_ids=1 như BFL. Text cache namespace chứa revision/max_length/pad_multiple, tách latent cache vốn không đổi.
+- Preview CFG encode prompt ngắn lại ở window dài trước khi unload TE qua hook `prepare_sample_prompt_pair`; cached/live đều giữ real pad-token states. Không zero-pad context để ghép batch. Với cached training prompts khác window, dùng physical batch1 + accumulation; batch nhiều window khác nhau báo lỗi rõ.
+- `testing/test_flux3_text_conditioning.py`:14CPU tests gồm exact SDTrainer cache→FakeTE→generation, cache identity, mismatched cache rejection, tiny real Qwen3VLTextModel (đã chạy Transformers5.5.3 cách ly), real reduced FLUX.3 transformer + actual LoRAModule optimizer/checkpointing parity. Đây chưa là pretrained Base BF16 GPU/quality validation.
 - `python testing/test_scheduler_step_units.py`:7CPU tests cho phase conversion, curve, param-group ratio, resume và merged trainer call site.
 - `python testing/test_flux3_reference_contract.py`:11CPU tests dùng actual loader/model methods và packers; kiểm independent shapes,2/3refs, legacy stacked input, role IDs, t0 conditioning, gradient qua recording transformer, budget/Lanczos và prefix roundtrip.
 - Tests reference dùng AST loading để tách dependency/model weights không liên quan; không phải end-to-end training. Chưa tải weights hoặc kiểm GPU optimizer step/VRAM/quality. Prefix roundtrip cũng chưa chứng minh mọi exporter/checkpoint load vào ComfyUI.

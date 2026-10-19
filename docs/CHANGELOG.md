@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-19
+- Sửa FLUX.3 Qwen padding position_ids và cache CFG window trước unload TE; đổi text-cache identity, giữ latent/TAR/scheduler/install contracts.14text/reduced-transformer +11reference +6accumulation +7scheduler CPU checks đạt; thêm6probe-runner checks và script Base A/B không training. Pretrained Base GPU quality test chưa chạy.
+
 ## 2026-06-23
 - Bootstrapped lean project memory files for future project tasks.
 - Merged `upstream/main` into fork sync branch and preserved fork scheduler changes.

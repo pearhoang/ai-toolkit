@@ -70,6 +70,7 @@ from .src.checkpoints import BASE_REPO, COMFY_REPO, PACKAGE_TO_COMFY
 from .src.text_encoder import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_PAD_MULTIPLE,
+    TEXT_EMBEDDING_VERSION,
     QWEN3_VL_4B_REPO,
     Flux3TextEncoder,
     encode_flux3_prompt,
@@ -154,6 +155,10 @@ class Flux3Model(BaseModel):
 
     def get_bucket_divisibility(self):
         return 16  # f8 conv + 2x2 packing
+
+    def get_text_embedding_space_version(self) -> str:
+        # Independent from latent_space_version: VAE latents did not change.
+        return f"{TEXT_EMBEDDING_VERSION}_max{self.max_text_length}_pad{self.text_pad_multiple}"
 
     # ------------------------------------------------------------------
     # Package files
@@ -399,26 +404,10 @@ class Flux3Model(BaseModel):
         gen_config.width = int(gen_config.width // sc * sc)
         gen_config.height = int(gen_config.height // sc * sc)
 
-        # cond and uncond were encoded separately, so their pad-to-80 windows
-        # can differ. The DiT attends to real pad-token states, not zeros, so
-        # re-encode the shorter prompt at the longer window when the TE is up
-        # (cached embeddings: the TE is an unloaded stub; the shorter side is
-        # zero-padded in build_text_conditioning instead)
-        if (
-            unconditional_embeds is not None
-            and self.text_encoder is not None
-            and not isinstance(self.text_encoder, FakeTextEncoder)
-        ):
-            cond_len = conditional_embeds.text_embeds[0].shape[0]
-            uncond_len = unconditional_embeds.text_embeds[0].shape[0]
-            if cond_len != uncond_len:
-                target = max(cond_len, uncond_len)
-                if cond_len < target:
-                    conditional_embeds = self._encode_at_length(gen_config.prompt, target)
-                else:
-                    unconditional_embeds = self._encode_at_length(
-                        gen_config.negative_prompt or "", target
-                    )
+        if gen_config.guidance_scale > 1.0:
+            conditional_embeds, unconditional_embeds = self.prepare_sample_prompt_pair(
+                gen_config, conditional_embeds, unconditional_embeds
+            )
 
         ctrl_paths = self._preview_control_paths(gen_config)
         target_pixels = gen_config.width * gen_config.height
@@ -445,6 +434,32 @@ class Flux3Model(BaseModel):
             alpha=alpha,
         )
         return result[0]
+
+    def prepare_sample_prompt_pair(self, gen_config, conditional_embeds, unconditional_embeds):
+        """Align real Qwen pad states before cache unload and for live previews.
+
+        Called by SDTrainer before caching. Cached previews then need no TE.
+        Incompatible old caches fail explicitly instead of silently padding zeros.
+        """
+        if unconditional_embeds is None:
+            return conditional_embeds, unconditional_embeds
+        if len(conditional_embeds.text_embeds) != 1 or len(unconditional_embeds.text_embeds) != 1:
+            raise ValueError("FLUX.3 previews expect one positive/negative prompt pair")
+        cond_len = conditional_embeds.text_embeds[0].shape[0]
+        uncond_len = unconditional_embeds.text_embeds[0].shape[0]
+        if cond_len == uncond_len:
+            return conditional_embeds, unconditional_embeds
+        if self.text_encoder is None or isinstance(self.text_encoder, FakeTextEncoder):
+            raise RuntimeError(
+                "FLUX.3 cached CFG windows differ after TE unload. Rebuild sample "
+                "embeddings with the paired-window cache hook; do not zero-pad embeddings."
+            )
+        target = max(cond_len, uncond_len)
+        if cond_len < target:
+            conditional_embeds = self._encode_at_length(gen_config.prompt, target)
+        else:
+            unconditional_embeds = self._encode_at_length(gen_config.negative_prompt or "", target)
+        return conditional_embeds, unconditional_embeds
 
     def _fit_reference(self, img: torch.Tensor, target_pixels: int) -> torch.Tensor:
         """Size a (1, C, H, W) reference for the DiT. References keep their own
