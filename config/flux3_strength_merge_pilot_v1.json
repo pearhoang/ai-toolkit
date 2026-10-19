@@ -1,0 +1,48 @@
+{
+  "base_sha256": "5c921759dc03663dbb67df11d8e3d317d2d5b893b31b969c95dc77ebf861b19c",
+  "vae_sha256": "868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3",
+  "tasks": {
+    "general": {
+      "task": "expand_general",
+      "archive_name": "FLUX3_expand_general_CAPTION_PILOT_V1.tar",
+      "archive_sha256": "4c9ae0a8f97a6a24d0fa51aadbaee4e73682d674e974412d4c846fa40d27de53",
+      "manifest_sha256": "fded16e368d452e805404175c4af5aa562439d8879d705be54a61845a948d08b",
+      "checkpoint_sha256": "50d52a7f588c8958133a13e7b6d2d469b0c524ba3b690d8084a554b082a9c7ba",
+      "checkpoint_name": "flux3_expand_general_caption_pilot_v1_fresh.safetensors",
+      "run_name": "flux3_expand_general_caption_pilot_v1_fresh",
+      "cases": [
+        {
+          "sample_id": "f3_expand_0106_2",
+          "role": "train",
+          "seed": 20261020
+        },
+        {
+          "sample_id": "f3_expand_1072_3",
+          "role": "heldout",
+          "seed": 20261020
+        }
+      ]
+    },
+    "structural": {
+      "task": "expand_structural",
+      "archive_name": "FLUX3_expand_structural_CAPTION_PILOT_V1.tar",
+      "archive_sha256": "885e695f81fb7cbd0158a00601de2aa79a5fe02b654c403d459e6d6c1151e69b",
+      "manifest_sha256": "a2db58df6b98df24bdc50df0f7e652dcdae25e784c6db3f200ba32555fc6aaef",
+      "checkpoint_sha256": "fda47b118e2891aec1bb7856eec3932a92893c4423e5cb1b02b2c4c25bb065ef",
+      "checkpoint_name": "flux3_expand_structural_caption_pilot_v1_fresh.safetensors",
+      "run_name": "flux3_expand_structural_caption_pilot_v1_fresh",
+      "cases": [
+        {
+          "sample_id": "f3_structural_v4_02172",
+          "role": "train",
+          "seed": 20261020
+        },
+        {
+          "sample_id": "f3_structural_v4_05113",
+          "role": "heldout",
+          "seed": 20261020
+        }
+      ]
+    }
+  }
+}
