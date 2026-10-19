@@ -1,0 +1,21 @@
+{
+  "format": "flux3_base_caption_ab_boat_v1",
+  "sample_id": "f3_expand_1072_3",
+  "reference_sha256": "2d532a7022ae0dd8c69b449a23554b34085bec063011aa2045eea94d546c0830",
+  "notebook_prompt_sha256": "306d08997114739f8dc25aa4e375f33b199be139ea95e3f88eccc6c13d474670",
+  "pup_prompt": "Create a photograph by extending the existing image naturally into every additional border region, preserving the original canvas at its exact placement and scale. Keep unchanged the elevated viewpoint over the dark blue-gray ocean, the small gray inflatable rescue boat at frame-left with its white wake, the red-clad crew members, the large gray ship structure at frame-right, its angular crane arm, hanging cables, cylindrical equipment, railings, antenna, and covered machinery. Continue the same rippled water seamlessly across the entire expanded area, filling the new left, top, right, and bottom regions with matching rolling wave patterns, subdued slate-blue color, and the same overcast light. Complete the cropped ship structure at frame-right by naturally continuing its pale gray hull, deck surfaces, railings, pipes, cables, and equipment into the added right and bottom areas, maintaining their original geometry and material. Continue the wake and open water toward the added top and left areas with consistent wave scale and texture. Add no new boats, people, text, logos, signs, or unrelated objects; only the existing ocean and the naturally completed ship structure should appear throughout the expanded scene.",
+  "pup_prompt_sha256": "3b91a9ec045f6db74b7bb23e5c2114b1d8a38f04831546cd49ecc4f37825f05c",
+  "pup_source_graph_sha256": "c63310bcf5c07b4397a4cba15275fac9b3ace0d5ecda37f81947a7418e8d062c",
+  "pup_provenance": "Frozen caption from completed Distilled Comfy boat baseline; no new upsampler call",
+  "base_sha256": "5c921759dc03663dbb67df11d8e3d317d2d5b893b31b969c95dc77ebf861b19c",
+  "vae_sha256": "868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3",
+  "checkpoint_sha256": "edf26162d259e726884ee6df56545c16ea056c1bd1fa39494411cce64482b27b",
+  "lora_alpha": 32,
+  "steps": 25,
+  "guidance": 4.0,
+  "alpha": 6.93,
+  "seeds": [
+    20261020,
+    20261021
+  ]
+}

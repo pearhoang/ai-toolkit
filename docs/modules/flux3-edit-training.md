@@ -38,6 +38,7 @@ model:
 - `testing/test_sd_trainer_accumulation.py` chạy actual hook bằng tensor/SGD CPU với các target khác nhau, đối chiếu mean-gradient, không chỉ đếm call.
 
 ## Kiểm chứng
+- `scripts/flux3_caption_ab.py` là probe inference riêng: caption notebook so với PUP frozen trên cùng Base BF16/ref/seed, LoRA OFF/ON,25/CFG4 mặc định. Prompt/reference/checkpoint/Base/VAE có SHA guards; common real text pad window. Không gọi PUP mới, optimizer hoặc merge base.4CPU fixture tests kiểm8jobs/controls/provenance; pretrained Base caption A/B chưa chạy. `config/flux3_caption_ab_boat_v1.json` chỉ áp dụng ca boatf3_expand_1072_3/General2000.
 - Text-conditioning revision `flux3_qwen3vl_padpos1_v2`: right-padding rõ ràng; Qwen token đệm dùng position_ids=1 như BFL. Text cache namespace chứa revision/max_length/pad_multiple, tách latent cache vốn không đổi.
 - Preview CFG encode prompt ngắn lại ở window dài trước khi unload TE qua hook `prepare_sample_prompt_pair`; cached/live đều giữ real pad-token states. Không zero-pad context để ghép batch. Với cached training prompts khác window, dùng physical batch1 + accumulation; batch nhiều window khác nhau báo lỗi rõ.
 - `testing/test_flux3_text_conditioning.py`:14CPU tests gồm exact SDTrainer cache→FakeTE→generation, cache identity, mismatched cache rejection, tiny real Qwen3VLTextModel (đã chạy Transformers5.5.3 cách ly), real reduced FLUX.3 transformer + actual LoRAModule optimizer/checkpointing parity. Đây chưa là pretrained Base BF16 GPU/quality validation.

@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-10-19
+- Thêm probe caption notebook/PUP frozen trên cùngBase BF16,2seeds×OFF/ON,25/CFG4, text window chung và SHA provenance.4CPU fixture checks đạt, chưa fullBaseGPUcaptionA/B; không đổi trainer hoặc dataset.
 - Probe Base A/B theo user dùng flowmatch25steps/CFG4 mặc định; thêm CLI overrides và ghi recipe thực vào REPORT. Core training, alpha6.93 và conditioning patch giữ nguyên.
 - Sửa FLUX.3 Qwen padding position_ids và cache CFG window trước unload TE; đổi text-cache identity, giữ latent/TAR/scheduler/install contracts.14text/reduced-transformer +11reference +6accumulation +7scheduler CPU checks đạt; thêm6probe-runner checks và script Base A/B không training. Pretrained Base GPU quality test chưa chạy.
 
