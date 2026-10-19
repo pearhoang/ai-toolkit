@@ -91,6 +91,20 @@ class ABRunnerTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "validation"):
                 runner.verified_bundle(root)
 
+    def test_cli_defaults_and_explicit_preview_settings(self):
+        base = ["probe", "--bundle", "bundle", "--checkpoint", "checkpoint", "--output", "out"]
+        for flags, steps, guidance in [([], 25, 4.0), (["--steps", "50", "--guidance", "3.5"], 50, 3.5)]:
+            with patch.object(sys, "argv", base + flags), patch.object(runner, "run") as run:
+                runner.main()
+                args = run.call_args.args[0]
+                self.assertEqual(args.steps, steps)
+                self.assertEqual(args.guidance, guidance)
+
+    def test_invalid_preview_settings_fail_before_loading_model(self):
+        for steps, guidance in [(0, 4.0), (25, 1.0), (25, float("nan"))]:
+            with self.assertRaisesRegex(ValueError, "steps in"):
+                runner.run(types.SimpleNamespace(steps=steps, guidance=guidance))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

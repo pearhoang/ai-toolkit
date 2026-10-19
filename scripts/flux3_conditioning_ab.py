@@ -96,6 +96,8 @@ def attach_native_lora(transformer, checkpoint, alpha):
 
 
 def run(args):
+    if not 1 <= args.steps <= 200 or not math.isfinite(args.guidance) or args.guidance <= 1:
+        raise ValueError("Use steps in [1, 200] and finite guidance > 1 for this CFG comparison")
     from toolkit.advanced_prompt_embeds import AdvancedPromptEmbeds
     from toolkit.config_modules import ModelConfig
     from toolkit.unloader import unload_text_encoder
@@ -152,7 +154,7 @@ def run(args):
     report = dict(status="running", no_training=True, no_base_merge=True,
         checkpoint_sha256=sha(checkpoint), checkpoint=str(checkpoint), case=case,
         text_encoding_version=TEXT_EMBEDDING_VERSION, windows=initial_windows,
-        adapters=len(adapters), steps=50, guidance=3.5, alpha=6.93,
+        adapters=len(adapters), sampler="flowmatch_euler", steps=args.steps, guidance=args.guidance, alpha=6.93,
         model=recipe, torch=torch.__version__, gpu=torch.cuda.get_device_name(0),
         base_vae_sha256=weight_proof,
         toolkit_commit=subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(), results=[])
@@ -163,8 +165,8 @@ def run(args):
             generator = torch.Generator(device="cpu").manual_seed(case["seed"])
             start = time.time()
             images = pipeline(conditional_embeds=p, unconditional_embeds=n,
-                height=case["height"], width=case["width"], num_inference_steps=50,
-                guidance_scale=3.5, generator=generator, ctrl_imgs=[reference], alpha=6.93)
+                height=case["height"], width=case["width"], num_inference_steps=args.steps,
+                guidance_scale=args.guidance, generator=generator, ctrl_imgs=[reference], alpha=6.93)
             path = out / f"{variant}_lora_{'ON' if multiplier else 'OFF'}.png"
             images[0].save(path)
             report["results"].append(dict(file=path.name, sha256=sha(path), elapsed_seconds=time.time()-start))
@@ -181,6 +183,8 @@ def main():
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--case", type=int, default=2)
+    parser.add_argument("--steps", type=int, default=25)
+    parser.add_argument("--guidance", type=float, default=4.0)
     run(parser.parse_args())
 
 
