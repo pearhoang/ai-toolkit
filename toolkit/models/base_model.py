@@ -99,6 +99,9 @@ UNET_IN_CHANNELS = 4  # Stable Diffusion の in_channels は 4 で固定。XLも
 class BaseModel:
     # override these in child classes
     arch = None
+    # Architectures can retain FP32 adapter forward during previews when merging
+    # small updates into low-precision Base weights changes their meaning.
+    merge_lora_for_sampling = True
     # rename LoRA keys transformer. <-> diffusion_model. (the ComfyUI-standard
     # prefix) on save/load
     lora_keys_use_comfy_prefix = False
@@ -485,7 +488,7 @@ class BaseModel:
             # the network to drastically speed up inference
             unique_network_weights = set(
                 [x.network_multiplier for x in image_configs])
-            if len(unique_network_weights) == 1 and network.can_merge_in:
+            if len(unique_network_weights) == 1 and network.can_merge_in and self.merge_lora_for_sampling:
                 can_merge_in = True
                 merge_multiplier = unique_network_weights.pop()
                 network.merge_in(merge_weight=merge_multiplier)

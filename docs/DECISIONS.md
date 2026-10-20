@@ -28,3 +28,9 @@ Use `lr_scheduler: warmup_then_phased_cosine` when `phases` are present. The old
 - New text cache identity gồm encoding revision/max_length/pad_multiple. Latent space không đổi. Không buộc sửa TAR ảnh/caption vì lỗi encoding này.
 - Physical training batch1 với caption windows khác nhau; tăng effective batch qua accumulation. Không âm thầm đổi encoding khi batch cache khác chiều dài.
 - Kiểm CPU không thay pretrained Base GPU A/B; không coi checkpoint đã học đạt hoặc buộc train lại chỉ từ source discrepancy.
+
+## DEC-005 — FLUX.3 preview dùngadapterforward, khôngBF16merge (2026-10-20)
+
+- ActualGeneralpilot200probe54f56d3:98.2%targetBaseweightentriesunchanged,sai khácdeltaL2/expected≈0.9727. FullimageeffectcủamergekhôngtươngđươnggiữBAupdate. LoRAforward4vẫnyếu/chưageometrypass,nênmergekhônglànguyênnhânduynhất.
+- BaseModelcapability`merge_lora_for_sampling=True`mặcđịnh;Flux3ModelFalse. PeriodicpreviewgiữnetworkFP32forwardnhưtrain,khôngmerge/unmergecộngtrừbaseBF16;optimizer/loss/rankalpha/strengthconfigs khôngđổi. Manualprobe vẫncho phépmergeđểđối chứng.
+-6CPUactualpreviewbranch/merge/restorechecks+14text/referencehooktests khôngthaythếColabperiodicpreviewrun. Khôngtựkhởitraininghoặcđánhgiáqualitychỉtừroundingstats.

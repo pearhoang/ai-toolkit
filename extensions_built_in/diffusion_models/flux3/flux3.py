@@ -95,6 +95,10 @@ scheduler_config = {
 
 class Flux3Model(BaseModel):
     arch = "flux3"
+    # Actual Base BF16 pilot probe confirmed substantial BA rounding on merge.
+    # Use the same FP32 adapter-forward path as training; never merge/unmerge the
+    # frozen Base during its periodic previews. Other architectures keep default.
+    merge_lora_for_sampling = False
 
     def __init__(
         self,

@@ -30,6 +30,27 @@ class Adapter:
 
 
 class StrengthTests(unittest.TestCase):
+    def test_actual_preview_merge_branch_honors_model_capability(self):
+        base=ast.parse((ROOT/'toolkit/models/base_model.py').read_text(encoding='utf-8'))
+        cls=next(n for n in base.body if isinstance(n,ast.ClassDef) and n.name=='BaseModel')
+        method=next(n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name=='generate_images')
+        branch=next(n for n in ast.walk(method) if isinstance(n,ast.If) and 'unique_network_weights' in ast.unparse(n.test))
+        # Execute the actual merge decision and body with a recording network.
+        merged=[]
+        for enabled,expected in [(True,True),(False,False)]:
+            env=dict(self=types.SimpleNamespace(merge_lora_for_sampling=enabled),
+                unique_network_weights={1.},network=types.SimpleNamespace(can_merge_in=True,merge_in=lambda **kw:merged.append(kw)))
+            before=len(merged)
+            exec(compile(ast.Module(body=[branch],type_ignores=[]),'actual_Base_preview_merge_branch','exec'),env)
+            self.assertEqual(len(merged)>before,expected)
+        for path,name,expected in [(ROOT/'toolkit/models/base_model.py','BaseModel',True),
+            (ROOT/'extensions_built_in/diffusion_models/flux3/flux3.py','Flux3Model',False)]:
+            tree=ast.parse(path.read_text(encoding='utf-8'))
+            cls=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name==name)
+            value=next(ast.literal_eval(n.value) for n in cls.body if isinstance(n,ast.Assign)
+                and any(isinstance(t,ast.Name) and t.id=='merge_lora_for_sampling' for t in n.targets))
+            self.assertEqual(value,expected)
+
     def test_restore_and_measure_with_actual_trainer_merge_method(self):
         tree=ast.parse((ROOT/'toolkit/network_mixins.py').read_text(encoding='utf-8'))
         cls=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='ToolkitModuleMixin')

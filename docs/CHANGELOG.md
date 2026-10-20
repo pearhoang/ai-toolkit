@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-10-19
+- 2026-10-20 actualGeneralpilotprobe xácnhậnBF16mergeđổiBAupdate. FLUX.3 preview chuyểnFP32adapterforward bằngmodelcapability; cácarchkhácgiữmerge mặcđịnh. Khôngđổitrainhyperparams;6CPUactualbranch/merge/restorechecksPASS,chưaGPUperiodicpreviewrerun.
 - Thêm strength/merge probe cho2pilot200:forwardFP32adapterstrength0/1/2/4 vs actualtrainerBF16merge1,cùngtrain+heldout2cases/task;firstpredictiondelta,actualroundingmetrics và exactCPUsnapshotrestore.Khôngtraining,5CPUfixture/actualmergechecks;chưaBaseGPUprobe.
 - Thêm probe caption notebook/PUP frozen trên cùngBase BF16,2seeds×OFF/ON,25/CFG4, text window chung và SHA provenance.4CPU fixture checks đạt, chưa fullBaseGPUcaptionA/B; không đổi trainer hoặc dataset.
 - Probe Base A/B theo user dùng flowmatch25steps/CFG4 mặc định; thêm CLI overrides và ghi recipe thực vào REPORT. Core training, alpha6.93 và conditioning patch giữ nguyên.

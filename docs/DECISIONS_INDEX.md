@@ -14,3 +14,5 @@
 | DEC-003 | Colab dùng requirements.txt của main theo luồng notebook V7/V8; dependency baseline nằm trong repo, không ép manager Torch/CUDA hoặc global pip checks từ notebook | Active | Colab/install | Medium |
 
 | DEC-004 | FLUX.3 dùng BFL pad position1 và cache CFG pair ở window chung; text cache revision mới, latent/TAR không đổi | Active | FLUX.3 text/cache/preview | High |
+
+| DEC-005 | FLUX.3 periodic preview không merge LoRA vào BF16Base; giữ FP32adapterforward và frozenBase, cácarchkhácgiữdefault | Active; actualGeneralprobe + CPUgate verified, periodicGPUrerunpending | FLUX.3 preview precision | High |
