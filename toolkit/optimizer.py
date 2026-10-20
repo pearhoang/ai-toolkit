@@ -76,7 +76,11 @@ def get_optimizer(
     elif lower_type == 'adam':
         optimizer = torch.optim.Adam(params, lr=float(learning_rate), eps=1e-6, **optimizer_params)
     elif lower_type == 'adamw':
-        optimizer = torch.optim.AdamW(params, lr=float(learning_rate), eps=1e-6, **optimizer_params)
+        # Preserve the legacy default while allowing explicit per-run epsilon.
+        # Copy because config dictionaries may be reused for another optimizer.
+        adamw_params = dict(optimizer_params)
+        adamw_params.setdefault('eps', 1e-6)
+        optimizer = torch.optim.AdamW(params, lr=float(learning_rate), **adamw_params)
     elif lower_type == 'lion':
         try:
             from lion_pytorch import Lion
